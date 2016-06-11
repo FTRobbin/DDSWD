@@ -6,16 +6,21 @@ import CSG.CSG;
 import CSG.Miner;
 import Classification.Classifier;
 import Classification.Report;
+import Evaluation.Annotator;
+import Evaluation.Evaluator;
+import Evaluation.SentimentClassifier;
 import Linguistic.Corpus;
 import Linguistic.Dictionary;
+import Linguistic.Sentence;
 import Linguistic.Utility;
 import Test.*;
 import javafx.util.Pair;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
+import java.util.HashSet;
 
+import static java.lang.System.currentTimeMillis;
 import static java.lang.System.exit;
 
 /**
@@ -109,6 +114,87 @@ public class Main {
 
     static void printReport() {
         System.out.println(report.print());
+        File log = new File("log" + currentTimeMillis() + ".txt");
+        try {
+            OutputStream output = new FileOutputStream(log);
+            output.write(report.print().getBytes());
+        } catch (IOException ie) {
+            ie.printStackTrace();
+        }
+    }
+
+    static ArrayList<SentimentClassifier> getSentimentClassifiers(ArrayList<Pair<String, Double>> changeList) {
+        ArrayList<SentimentClassifier> ret = new ArrayList<>();
+        HashSet<String> correct = new HashSet<>();
+        try {
+            String path = "res/corpus/" + corpus.name.replace(".txt", "_correct.txt");
+            BufferedReader bufReader = new BufferedReader(new FileReader(new File(path)));
+            String tmp;
+            while ((tmp = bufReader.readLine()) != null) {
+                correct.add(tmp);
+            }
+            bufReader.close();
+        } catch (IOException ie) {
+            ie.printStackTrace();
+            System.exit(1);
+        }
+        ret.add(SentimentClassifier.getClassifier(null, positive, negative));
+        ArrayList<Pair<String, Double>> cur = new ArrayList<>(), cor = new ArrayList<>();
+        for (int i = 0; i < changeList.size(); ++i) {
+            cur.add(changeList.get(i));
+            if (correct.contains(changeList.get(i).getKey().intern())) {
+                cor.add(changeList.get(i));
+            }
+            if (cur.size() == 5 || cur.size() == 10 || cur.size() == 20) {
+                ret.add(SentimentClassifier.getClassifier(cur, positive, negative));
+                Annotator.askHowMany(cur, corpus);
+                //ret.add(SentimentClassifier.getClassifier(cor, positive, negative));
+            }
+        }
+        cur.clear();
+        try {
+            String path = "res/baseline/report_" + corpus.name;
+            BufferedReader bufReader = new BufferedReader(new FileReader(new File(path)));
+            String tmp;
+            while ((tmp = bufReader.readLine()) != null) {
+                String word = tmp.split(" ")[0];
+                Double dir = positive.include(word) ? Utility.NEGABAR - 0.01 : Utility.POSIBAR + 0.01;
+                cur.add(new Pair<>(word, dir));
+                if (cur.size() == 5 || cur.size() == 10 || cur.size() == 20) {
+                    ret.add(SentimentClassifier.getClassifier(cur, positive, negative));
+                }
+            }
+            bufReader.close();
+        } catch (IOException ie) {
+            ie.printStackTrace();
+            System.exit(1);
+        }
+        //ret.add(SentimentClassifier.getClassifier(cur, positive, negative));
+        return ret;
+    }
+
+    static public void evaluation(String args[]) {
+        Annotator.BAR = Integer.valueOf(args[1]);
+        ArrayList<Pair<String, Double>> changeList = report.getChangeList();
+        ArrayList<String> plainList = new ArrayList<>();
+        for (Pair<String, Double> p : changeList) {
+            plainList.add(p.getKey());
+        }
+        System.err.println("Change list calculated. " + changeList.size() + " words.");
+        SentimentClassifier oldClassifier = SentimentClassifier.getClassifier(null, positive, negative),
+                newClassifier = SentimentClassifier.getClassifier(changeList, positive, negative);
+        String annotPath = "res/corpus/" + corpus.name.replace(".txt", "") + "_annotation.txt";
+        ArrayList<Pair<Sentence, Boolean>> data = null;
+        try {
+            data = Annotator.getAnnotatedCorpus(plainList, corpus, new File(annotPath), oldClassifier, newClassifier);
+        } catch (IOException ie) {
+            ie.printStackTrace();
+            exit(1);
+        }
+        System.err.println("Annotation complete. " + data.size());
+        ArrayList<SentimentClassifier> classifiers = getSentimentClassifiers(changeList);
+        ArrayList<Integer> ret = Evaluator.evaluate(data, classifiers);
+        report.addEvaluation(changeList, data, ret);
     }
 
     static public void main(String args[]) {
@@ -130,6 +216,9 @@ public class Main {
         calcDistribution();
         generateReport();
 
+        evaluation(args);
+
         printReport();
     }
+
 }

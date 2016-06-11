@@ -23,9 +23,17 @@ public class Sentence {
     }
 
     public String print() {
-        String ret = new String();
+        String ret = "";
         for (Word w : words) {
             ret = ret + (" " + w.print());
+        }
+        return ret;
+    }
+
+    public String getText() {
+        String ret = "";
+        for (Word w : words) {
+            ret = ret + (" " + w.ori);
         }
         return ret;
     }

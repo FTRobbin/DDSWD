@@ -8,11 +8,13 @@ import java.util.List;
  */
 public class Word {
 
-    public String base;
+    public String ori, base;
 
     public POS tag;
 
     public int pos;
+
+    public double intense;
 
     public boolean isSentiment;
 
@@ -21,6 +23,7 @@ public class Word {
     public Word(String token, int position) {
         token = token.replace("\\/", "\\");
         String[] tmp = token.split("/");
+        ori = tmp[0];
         if (tmp.length < 3) {
             System.out.println(token);
             base = "";
@@ -35,6 +38,7 @@ public class Word {
             isSentiment = false;
             negated = false;
         }
+        intense = 1;
     }
 
     public String print() {

@@ -14,7 +14,7 @@ public class Dictionary {
 
     public String name;
 
-    private Set<String> list;
+    private HashSet<String> list;
 
     public Dictionary(File dict) throws IOException {
         this.name = dict.getName();
@@ -27,6 +27,11 @@ public class Dictionary {
         bufReader.close();
     }
 
+    public Dictionary(Dictionary dict) {
+        this.name = dict.name;
+        this.list = dict.cloneList();
+    }
+
     public boolean include(Word w) {
         return list.contains(w.base.intern());
     }
@@ -37,5 +42,21 @@ public class Dictionary {
 
     public int getSize() {
         return list.size();
+    }
+
+    public void removeIfFound(String s) {
+        if (list.contains(s.intern())) {
+            list.remove(s.intern());
+        }
+    }
+
+    public void addIfNotFound(String s) {
+        if (!list.contains(s.intern())) {
+            list.add(s);
+        }
+    }
+
+    public HashSet<String> cloneList() {
+        return (HashSet<String>)(list.clone());
     }
 }

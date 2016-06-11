@@ -22,6 +22,12 @@ public class Report {
     private ArrayList<Pair<String, Double>> ndist;
     static String cutline = "--------------------\n";
 
+    private ArrayList<Pair<String, Double>> posiP, posiN, neutP, neutN, negaP, negaN, all;
+
+    private ArrayList<Pair<String, Double>> changeList;
+    private ArrayList<Pair<Sentence, Boolean>> keySentence;
+    private ArrayList<Integer> scores;
+
     public Report (ArrayList<Dictionary> dicts, Corpus corpus, ArrayList<CSG> csgs, ClusterGraph graph, ArrayList<Pair<String, Double>> ndist) {
         this.dicts = dicts;
         this.corpus = corpus;
@@ -162,14 +168,14 @@ public class Report {
         return ret;
     }
 
-    private String printResult() {
-        String ret = "";
-        ArrayList<Pair<String, Double>> posiP = new ArrayList<>(),
-                                        posiN = new ArrayList<>(),
-                                        neutP = new ArrayList<>(),
-                                        neutN = new ArrayList<>(),
-                                        negaP = new ArrayList<>(),
-                                        negaN = new ArrayList<>();
+    private void calcChangeList() {
+        posiP = new ArrayList<>();
+        posiN = new ArrayList<>();
+        neutP = new ArrayList<>();
+        neutN = new ArrayList<>();
+        negaP = new ArrayList<>();
+        negaN = new ArrayList<>();
+        all = new ArrayList<>();
         for (Pair<String, Double> pair : ndist) {
             Double ori = Utility.getOriginalValue(pair.getKey());
             if (ori > 0.51) {
@@ -177,10 +183,12 @@ public class Report {
                     posiP.add(pair);
                 } else {
                     posiN.add(pair);
+                    all.add(new Pair<String, Double>(pair.getKey(), Math.abs(Utility.getOriginalValue(pair.getKey()) - pair.getValue())));
                 }
             } else if (ori < 0.49) {
                 if (pair.getValue() > ori) {
                     negaP.add(pair);
+                    all.add(new Pair<String, Double>(pair.getKey(), Math.abs(Utility.getOriginalValue(pair.getKey()) - pair.getValue())));
                 } else {
                     negaN.add(pair);
                 }
@@ -190,6 +198,7 @@ public class Report {
                 } else {
                     neutN.add(pair);
                 }
+                all.add(new Pair<String, Double>(pair.getKey(), Math.abs(Utility.getOriginalValue(pair.getKey()) - pair.getValue())));
             }
         }
         Comparator<Pair<String, Double>> greater = new Comparator<Pair<String, Double>>() {
@@ -220,6 +229,12 @@ public class Report {
         neutN.sort(lesser);
         negaP.sort(greater);
         negaN.sort(lesser);
+        all.sort(greater);
+    }
+
+    private String printResult() {
+        String ret = "";
+        calcChangeList();
         ret = ret + "Positive + : \n" + printResultList(posiP);
         ret = ret + "Positive - : \n" + printResultList(posiN);
         ret = ret + "Negative + : \n" + printResultList(negaP);
@@ -227,10 +242,42 @@ public class Report {
         ret = ret + "Neutral + : \n" + printResultList(neutP);
         ret = ret + "Neutral - : \n" + printResultList(neutN);
         ret = ret + cutline;
+        ret = ret + "All : \n" + printResultList(all);
+        ret = ret + cutline;
+        return ret;
+    }
+
+    public void addEvaluation(ArrayList<Pair<String, Double>> changeList, ArrayList<Pair<Sentence, Boolean>> keySentence, ArrayList<Integer> scores) {
+        this.changeList = changeList;
+        this.keySentence = keySentence;
+        this.scores = scores;
+    }
+
+    private String printEvaluation() {
+        String ret = "";
+        ret = ret + "Orientation changed words : " + changeList.size() + "\n";
+        ret = ret + "Evaluation set : " + keySentence.size() + "\n";
+        for (Integer s : scores) {
+            ret = ret + "Score : " + s + "/" + keySentence.size() + " " + ((double)s / keySentence.size()) + "\n";
+        }
+        ret = ret + cutline;
         return ret;
     }
 
     public String print() {
-        return "Report : \n" + printDicts() + printCorpus() + printCSGS() + printGraph() + printResult();
+        return "Report : \n" + printDicts() + printCorpus() + printCSGS() + printGraph() + printResult() + printEvaluation();
+    }
+
+    public ArrayList<Pair<String, Double>> getChangeList() {
+        calcChangeList();
+        ArrayList<Pair<String, Double>> ret = new ArrayList<>();
+        for (Pair<String, Double> p : ndist) {
+            for (int i = 0; i < 20; ++i) {
+                if (all.get(i).getKey().equals(p.getKey())) {
+                    ret.add(p);
+                }
+            }
+        }
+        return ret;
     }
 }

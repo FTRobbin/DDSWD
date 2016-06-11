@@ -27,7 +27,7 @@ public class ConjunctionBetween extends Rule{
         ArrayList<CSG> ret = new ArrayList<CSG>();
         ArrayList<Word> words = new ArrayList<Word>();
         for (Word w : se.words) {
-            if (f.isUseful(w)) {
+            if (f.isUseful(w) || w.base.equals(conj)) {
                 words.add(w);
             }
         }
